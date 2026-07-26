@@ -1,0 +1,356 @@
+import os, sys, torch, time, cv2
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from datetime import datetime
+from collections import defaultdict
+from HccePose.bop_loader import BopDataset, TestBopDatasetBackFront, pycoco_utils
+from HccePose.network_model import HccePose_BF_Net, load_checkpoint
+from torch.cuda.amp import autocast as autocast
+from kasal.bop_toolkit_lib.inout import load_ply
+from kasal.utils.io_json import write_dict2json
+from HccePose.PnP_solver import solve_PnP, solve_PnP_comb
+from HccePose.visualization import vis_rgb_mask_Coord
+from HccePose.metric import add_s
+
+def gen_mask(img, mask, Bbox, crop_size=128, interpolation=None):
+    Bbox = Bbox.copy()
+    center_x = Bbox[0] + 0.5 * Bbox[2]
+    center_y = Bbox[1] + 0.5 * Bbox[3]
+    w_2 = Bbox[2] / 2
+    pts1 = np.float32([[center_x - w_2, center_y - w_2], [center_x - w_2, center_y + w_2], [center_x + w_2, center_y - w_2]])
+    pts2 = np.float32([[0, 0], [0, crop_size], [crop_size, 0]])
+    M = cv2.getAffineTransform(pts1, pts2)
+    mask[mask > 0] = 255
+    mask = mask.astype(np.uint8)
+    mask_origin = cv2.warpAffine(mask, M, (img.shape[1], img.shape[0]), flags=interpolation)
+    return mask_origin
+
+def write_csv(filepath, obj_id_l, scene_id_l, img_id_l, r_l, t_l, score_l, time_l):
+    data = []
+    for obj_id, scene_id, img_id, r, t, score, elapsed in zip(obj_id_l, scene_id_l, img_id_l, r_l, t_l, score_l, time_l):
+        R_flat = [float(r[i][j]) for i in range(3) for j in range(3)]
+        t_flat = [float(t[i]) for i in range(3)]
+        data.append({
+            'scene_id': int(scene_id),
+            'im_id': int(img_id),
+            'obj_id': int(obj_id),
+            'score': float(score),
+            'R': ' '.join(map(str, R_flat)),
+            't': ' '.join(map(str, t_flat)),
+            'time': float(elapsed),
+        })
+    df = pd.DataFrame(data, columns=['scene_id', 'im_id', 'obj_id', 'score', 'R', 't', 'time'])
+    df['time'] = df.groupby(['scene_id', 'im_id'])['time'].transform('sum')
+    df.to_csv(filepath, index=False)
+
+
+class ObjIDWrapperDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset, obj_id, use_gt_bbox=True, ratio=1.0):
+        self.dataset = dataset
+        self.obj_id = obj_id
+        self.use_gt_bbox = use_gt_bbox
+        
+        self.total_len = len(self.dataset)
+        if ratio < 1.0:
+            self.actual_len = max(1, int(self.total_len * ratio))
+            # np.linspace 保证了均匀地从头到尾抽取指定数量的索引
+            self.indices = np.linspace(0, self.total_len - 1, self.actual_len, dtype=int).tolist()
+        else:
+            self.actual_len = self.total_len
+            self.indices = list(range(self.total_len))
+
+    def __len__(self):
+        return self.actual_len
+
+    def __getitem__(self, idx):
+        real_idx = self.indices[idx]
+        data = self.dataset[real_idx]
+        if self.use_gt_bbox:
+            # bbox_2D 为 None 时，底层返回 8 个值。手动补齐后 3 个元数据。
+            scene_id, image_id = self.get_meta(idx)
+            score = 1.0  # GT 默认 score 为 1.0
+            return (*data, scene_id, image_id, score, self.obj_id)
+        else:
+            # bbox_2D 不为 None 时，底层已经返回了 11 个值，直接追加 obj_id 即可
+            return (*data, self.obj_id)
+            
+    def get_meta(self, idx):
+        inner_ds = self.dataset 
+        obj_key = 'obj_%s' % str(inner_ds.current_obj_id).rjust(6, '0')
+        info_ = inner_ds.dataset_info['obj_info'][obj_key][idx]
+        scene_id = int(info_['scene'])
+        image_id = int(info_['image'])
+        return scene_id, image_id
+
+
+if __name__ == '__main__':
+    np.random.seed(0)
+    
+    # net_name = 'convnext'
+    net_name = 'resnet'
+    
+    dataset_name = 'grabv1'
+    # dataset_name = 'tless'
+    
+    sys.path.insert(0, os.getcwd())
+    current_dir = os.path.dirname(sys.argv[0])
+    dataset_path = os.path.join(current_dir, '..', 'datasets', dataset_name)
+    
+    bbox_2D_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/grabv1/test/gt_bbox2d.json'
+    
+    use_gt_bbox = True
+    if use_gt_bbox:
+        bbox_2D = None
+    else:
+        bbox_2D = bbox_2D_path
+    
+    csv_save_path = f'/media/ubuntu/DISK-C/YJP/HCCEPose/output/{dataset_name}/timing_stats'
+    now_stamp = datetime.now()
+    csv_save_path = os.path.join(csv_save_path, net_name, now_stamp.strftime('%Y-%m-%d_%H:%M:%S'))
+    os.makedirs(csv_save_path, exist_ok=True)
+    
+    # tless
+    train_folder_name = 'test' 
+    
+    obj_id_list = [1, 2, 3, 4, 5]
+    
+    checkpoint_map = {
+        1: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_01/best_score/',
+        2: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_02/best_score/',
+        3: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_03/best_score/',
+        4: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-12_14:47:28/obj_04/best_score/',
+        5: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-12_14:47:28/obj_05/best_score/',
+    }
+    
+    CUDA_DEVICE = '0'
+    
+    vis_op = False
+    
+    pnp_op = 'ransac+vvs+comb' # ['epnp', 'ransac', 'ransac+vvs', 'ransac+comb', 'ransac+vvs+comb']
+    pnp_op_l = [['epnp', 'ransac', 'ransac+vvs', 'ransac+comb', 'ransac+vvs+comb'],[0,2,1]]
+    
+    batch_size = 1 # 为计算时间准确，batch size一定要等于1
+    num_workers = 8
+    reprojectionError = 4
+    
+    padding_ratio = 1.5
+    EVAL_RATIO = 0.15 
+    bop_dataset_item = BopDataset(dataset_path)
+    
+    if bbox_2D is not None:
+        test_bop_dataset_back_front_item = TestBopDatasetBackFront(bop_dataset_item, train_folder_name, padding_ratio=padding_ratio, bbox_2D=bbox_2D)
+    else:
+        test_bop_dataset_back_front_item = TestBopDatasetBackFront(bop_dataset_item, train_folder_name, padding_ratio=padding_ratio)
+
+    pred_list_all = {}
+    
+    # ==================== 新增：全局性能统计容器 ====================
+    total_images_processed = 0
+    total_instances_processed = 0
+    total_inference_time = 0.0
+    
+    class_time_sum = defaultdict(float)
+    class_instance_count = defaultdict(int)
+    image_time_sum = defaultdict(float)  # 用于按图像合并时间
+    # ==============================================================
+
+    for obj_id in obj_id_list:
+        obj_path = bop_dataset_item.obj_model_list[bop_dataset_item.obj_id_list.index(obj_id)]
+        print(f"\nProcessing Obj: {obj_path}")
+        
+        if obj_id in checkpoint_map:
+            best_save_path = checkpoint_map[obj_id]
+        else:
+            save_path = os.path.join(dataset_path, 'HccePose', 'obj_%s'%str(obj_id).rjust(2, '0'))
+            save_path = os.path.join(save_path, 'obj_%s'%str(obj_id).rjust(2, '0'))
+            best_save_path = os.path.join(save_path, 'best_score')
+        
+        obj_ply = load_ply(obj_path)
+        obj_info = bop_dataset_item.obj_info_list[bop_dataset_item.obj_id_list.index(obj_id)]
+        
+        min_xyz = torch.from_numpy(np.array([obj_info['min_x'], obj_info['min_y'], obj_info['min_z']],dtype=np.float32)).to('cuda:'+CUDA_DEVICE)
+        size_xyz = torch.from_numpy(np.array([obj_info['size_x'], obj_info['size_y'], obj_info['size_z']],dtype=np.float32)).to('cuda:'+CUDA_DEVICE)
+        
+        net = HccePose_BF_Net(
+                net=net_name,
+                input_channels = 3, 
+                min_xyz = min_xyz,
+                size_xyz = size_xyz,
+            )
+        checkpoint_info = load_checkpoint(best_save_path, net, CUDA_DEVICE=CUDA_DEVICE, strict=False)
+        keypoints_ = checkpoint_info.get('keypoints_', None)
+        if torch.cuda.is_available():
+            net = net.to('cuda:'+CUDA_DEVICE)
+            net.eval()
+            
+        test_bop_dataset_back_front_item.update_obj_id(obj_id, obj_path)
+        wrapped_dataset = ObjIDWrapperDataset(test_bop_dataset_back_front_item, obj_id, use_gt_bbox=use_gt_bbox, ratio=EVAL_RATIO)
+        test_loader = torch.utils.data.DataLoader(wrapped_dataset, batch_size=batch_size, 
+                                                shuffle=False, num_workers=num_workers, drop_last=False) 
+        
+        rgb_np = cv2.imread(test_bop_dataset_back_front_item.dataset_info['obj_info']['obj_' + str(obj_id).rjust(6, '0')][0]['rgb'])
+        
+        pred_list = []
+        
+        pbar = tqdm(enumerate(test_loader), total=len(test_loader), desc="Inference", colour='green', leave=False)
+        for batch_idx, batch_data in pbar:
+            (rgb_c, mask_vis_c, GT_Front_hcce, GT_Back_hcce, Bbox, cam_K, cam_R_m2c, cam_t_m2c, scene_id, image_id, score, _) = batch_data
+            if torch.cuda.is_available():
+                rgb_c = rgb_c.to('cuda:'+CUDA_DEVICE, non_blocking=True)
+                mask_vis_c = mask_vis_c.to('cuda:'+CUDA_DEVICE, non_blocking=True)
+                GT_Front_hcce = GT_Front_hcce.to('cuda:'+CUDA_DEVICE, non_blocking=True)
+                GT_Back_hcce = GT_Back_hcce.to('cuda:'+CUDA_DEVICE, non_blocking=True)
+                Bbox = Bbox.to('cuda:'+CUDA_DEVICE, non_blocking=True)
+                cam_K = cam_K.cpu().numpy()
+            
+            # 【计时开始】
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            t1_ = time.perf_counter()  # 更高精度的时钟
+            
+            pred_results = net.inference_batch(rgb_c, Bbox)
+            pred_mask = pred_results['pred_mask']
+            coord_image = pred_results['coord_2d_image']
+            pred_front_code_0 = pred_results['pred_front_code_obj']
+            pred_back_code_0 = pred_results['pred_back_code_obj']
+            pred_front_code = pred_results['pred_front_code']
+            pred_back_code = pred_results['pred_back_code']
+            pred_front_code_raw = pred_results['pred_front_code_raw'].reshape((-1,128,128,3,8)).permute((0,1,2,4,3)).reshape((-1,128,128,24))
+            pred_back_code_raw = pred_results['pred_back_code_raw'].reshape((-1,128,128,3,8)).permute((0,1,2,4,3)).reshape((-1,128,128,24))
+            pred_front_code = torch.cat([pred_front_code, pred_front_code_raw], dim=-1)
+            pred_back_code = torch.cat([pred_back_code, pred_back_code_raw], dim=-1)
+            
+            if vis_op is not None and vis_op == True:
+                vis_rgb_mask_Coord(rgb_c, pred_mask, pred_front_code, pred_back_code, img_path='show_vis.jpg')
+            
+            pred_mask_np = pred_mask.detach().cpu().numpy()
+            pred_front_code_0_np = pred_front_code_0.detach().cpu().numpy()
+            pred_back_code_0_np = pred_back_code_0.detach().cpu().numpy()
+            results = []
+            coord_image_np = coord_image.detach().cpu().numpy()
+            
+            current_bs = pred_mask_np.shape[0]  # 通常是 1
+            
+            if pnp_op in ['epnp', 'ransac', 'ransac+vvs']:
+                pred_m_f_c_np = [(pred_mask_np[i], pred_front_code_0_np[i], coord_image_np[i], cam_K[i]) for i in range(current_bs)]
+                for id_, pred_m_f_c_np_i in enumerate(pred_m_f_c_np):
+                    result_i = solve_PnP(pred_m_f_c_np_i, pnp_op=pnp_op_l[1][pnp_op_l[0].index(pnp_op)], reprojectionError=reprojectionError)
+                    results.append(result_i)
+                    mask_rle = pycoco_utils.binary_mask_to_rle(gen_mask(rgb_np, pred_m_f_c_np_i[0], Bbox[id_].detach().clone().cpu().numpy(), interpolation=cv2.INTER_NEAREST))
+                    
+                    # 【计时结束】
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    t2_ = time.perf_counter()
+                    elapsed_time = t2_ - t1_
+                    
+                    pred_list.append([result_i['rot'], result_i['tvecs'], mask_rle, 
+                                        int(scene_id[id_].cpu().numpy()), 
+                                        int(image_id[id_].numpy()), 
+                                        float(score[id_].numpy()),
+                                        elapsed_time
+                                        ])
+            else:
+                pred_m_bf_c_np = [(pred_mask_np[i], pred_front_code_0_np[i], pred_back_code_0_np[i], coord_image_np[i], cam_K[i]) for i in range(current_bs)]
+                for id_, pred_m_bf_c_np_i in enumerate(pred_m_bf_c_np):
+                    if pnp_op == 'ransac+comb':
+                        pnp_op_0 = 2
+                    else:
+                        pnp_op_0 = 1
+                    result_i = solve_PnP_comb(pred_m_bf_c_np_i, keypoints_, pnp_op=pnp_op_0, reprojectionError=reprojectionError / 128 * Bbox[id_].detach().clone().cpu().numpy()[2])
+                    results.append(result_i)
+                    mask_rle = pycoco_utils.binary_mask_to_rle(gen_mask(rgb_np, pred_m_bf_c_np_i[0], Bbox[id_].detach().clone().cpu().numpy(), interpolation=cv2.INTER_NEAREST))
+                    
+                    # 【计时结束】
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    t2_ = time.perf_counter()
+                    elapsed_time = t2_ - t1_
+                    
+                    pred_list.append([result_i['rot'], result_i['tvecs'], mask_rle, 
+                                        int(scene_id[id_].cpu().numpy()), 
+                                        int(image_id[id_].numpy()), 
+                                        float(score[id_].numpy()),
+                                        elapsed_time
+                                        ])
+            
+            # ==================== 新增：性能数据累加 ====================
+            img_key = f"{int(scene_id[0].item())}_{int(image_id[0].item())}"
+            # elapsed_time 即为当前这个实例(batch_size=1)的网络前向传播 + PnP求解时间
+            
+            total_instances_processed += 1
+            total_inference_time += elapsed_time
+            
+            class_time_sum[str(obj_id)] += elapsed_time
+            class_instance_count[str(obj_id)] += 1
+            image_time_sum[img_key] += elapsed_time
+            # ==========================================================
+
+            # print(f'Obj {obj_id} | Batch {batch_idx}: [Scene: {scene_id[0].item()} Image: {image_id[0].item()}] \t Time: {elapsed_time:.06f}s')
+            pbar.set_postfix({'Time': f'{elapsed_time:.4f}s'})
+            torch.cuda.empty_cache()
+        
+        pred_list_all[obj_id] = pred_list
+    
+    
+    seg2d_list, obj_id_l, scene_id_l, img_id_l, r_l, t_l, score_l = [], [], [], [], [], [], []
+    time_l = []
+    
+    for obj_id in pred_list_all:
+        pred_list = pred_list_all[obj_id]
+
+        for pred_i in pred_list:
+            rot, tvecs, mask_rle, scene_id_val, image_id_val, score_val, elapsed = pred_i
+            seg2d_list.append(
+                {
+                    "scene_id"     : int(scene_id_val),
+                    "image_id"     : int(image_id_val),
+                    "category_id"  : int(obj_id),
+                    "score"        : float(score_val),
+                    "bbox"         : [-1, -1, -1, -1],
+                    "segmentation" : mask_rle,
+                    "time"         : elapsed,
+                }
+            )
+            obj_id_l.append(int(obj_id))
+            scene_id_l.append(int(scene_id_val))
+            img_id_l.append(int(image_id_val))
+            r_l.append(rot.reshape((3,3)))
+            t_l.append(tvecs.reshape((3)))
+            score_l.append(float(score_val))
+            time_l.append(float(elapsed))
+            
+    write_dict2json(os.path.join(csv_save_path, f'seg2d_{dataset_name}-{train_folder_name}.json'), seg2d_list)
+    write_csv(os.path.join(csv_save_path, f'det6d_{dataset_name}-{train_folder_name}.csv'), obj_id_l, scene_id_l, img_id_l, r_l, t_l, score_l, time_l)
+
+    # ==================== 新增：计算并写入性能统计 TXT 文件 ====================
+    txt_file = os.path.join(csv_save_path, f'inference_stats_{dataset_name}-{train_folder_name}.txt')
+    
+    unique_images_count = len(image_time_sum)
+    avg_time_per_image = sum(image_time_sum.values()) / unique_images_count if unique_images_count > 0 else 0
+    avg_time_per_instance_overall = total_inference_time / total_instances_processed if total_instances_processed > 0 else 0
+    
+    with open(txt_file, 'w', encoding='utf-8') as f:
+        f.write("=" * 60 + "\n")
+        f.write(f"Strict Single-Instance Inference Timing ({dataset_name})\n")
+        f.write("=" * 60 + "\n\n")
+        f.write(f"Total Unique Images Processed : {unique_images_count}\n")
+        f.write(f"Total Instances Processed     : {total_instances_processed}\n")
+        f.write(f"Total Inference Time          : {total_inference_time:.4f} s\n")
+        f.write("-" * 60 + "\n")
+        f.write(f"[1] Avg Time per Instance (Overall): {avg_time_per_instance_overall:.5f} s ({avg_time_per_instance_overall*1000:.2f} ms)\n")
+        f.write(f"[2] Avg Time per Image             : {avg_time_per_image:.5f} s ({avg_time_per_image*1000:.2f} ms)\n")
+        f.write("-" * 60 + "\n")
+        f.write("[3] Avg Time per Instance by Category:\n")
+        
+        for cls_id in sorted([int(k) for k in class_instance_count.keys()]):
+            cls_str = str(cls_id)
+            count = class_instance_count[cls_str]
+            avg_time = class_time_sum[cls_str] / count if count > 0 else 0
+            f.write(f"    - Obj ID: {cls_id:02d} | Instances: {count:<4} | Avg Time: {avg_time:.5f} s ({avg_time*1000:.2f} ms)\n")
+        
+        f.write("\n" + "=" * 60 + "\n")
+    
+    print(f"\n✅ 评测完成！详细时间统计已保存至:\n{txt_file}")
+    # =========================================================================
