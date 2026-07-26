@@ -7,7 +7,7 @@ import argparse
 from collections import defaultdict
 from tqdm import tqdm
 from scipy.optimize import linear_sum_assignment
-from bop_toolkit_o.bop_toolkit_lib import misc, pose_error
+from bop_toolkit.bop_toolkit_lib import misc, pose_error
 
 # ================= 配置区域 =================
 DATASET_ROOT = "/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/grabv1" 

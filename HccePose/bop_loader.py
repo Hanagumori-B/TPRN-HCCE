@@ -20,10 +20,10 @@ if sys0 == "Linux":
 # 设置 `bop_toolkit` 的路径。
 sys.path.insert(0, os.getcwd())
 current_directory = sys.argv[0]
-pa_ = os.path.join(os.path.dirname(current_directory), 'bop_toolkit_o')
+pa_ = os.path.join(os.path.dirname(current_directory), 'bop_toolkit')
 sys.path.append(pa_)
-from bop_toolkit_o.bop_toolkit_lib import inout, misc, pose_error, pycoco_utils
-from bop_toolkit_o.bop_toolkit_lib import renderer
+from bop_toolkit.bop_toolkit_lib import inout, misc, pose_error, pycoco_utils
+from bop_toolkit.bop_toolkit_lib import renderer
 from kasal.utils import load_json2dict
 
 def aug_square_fp32(GT_Bbox, img_sz, dzi_scale_ratio=0.25, dzi_shift_ratio=0.25, padding_ratio=1.5):

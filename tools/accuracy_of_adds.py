@@ -7,7 +7,7 @@ import argparse
 from scipy.spatial.distance import cdist
 from collections import defaultdict
 from tqdm import tqdm
-from bop_toolkit_o.bop_toolkit_lib import inout, misc, pose_error
+from bop_toolkit.bop_toolkit_lib import inout, misc, pose_error
 
 # ================= 配置区域 =================
 # 数据集根目录 (包含 models 和 test 文件夹的目录)
