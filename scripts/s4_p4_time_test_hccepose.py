@@ -90,14 +90,14 @@ if __name__ == '__main__':
     # net_name = 'convnext'
     net_name = 'resnet'
     
-    dataset_name = 'grabv1'
+    dataset_name = 'dataset_name'
     # dataset_name = 'tless'
     
     sys.path.insert(0, os.getcwd())
     current_dir = os.path.dirname(sys.argv[0])
     dataset_path = os.path.join(current_dir, '..', 'datasets', dataset_name)
     
-    bbox_2D_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/grabv1/test/gt_bbox2d.json'
+    bbox_2D_path = '/HCCEPose/datasets/dataset_name/test/gt_bbox2d.json'
     
     use_gt_bbox = True
     if use_gt_bbox:
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     else:
         bbox_2D = bbox_2D_path
     
-    csv_save_path = f'/media/ubuntu/DISK-C/YJP/HCCEPose/output/{dataset_name}/timing_stats'
+    csv_save_path = f'/HCCEPose/output/{dataset_name}/timing_stats'
     now_stamp = datetime.now()
     csv_save_path = os.path.join(csv_save_path, net_name, now_stamp.strftime('%Y-%m-%d_%H:%M:%S'))
     os.makedirs(csv_save_path, exist_ok=True)
@@ -116,11 +116,11 @@ if __name__ == '__main__':
     obj_id_list = [1, 2, 3, 4, 5]
     
     checkpoint_map = {
-        1: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_01/best_score/',
-        2: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_02/best_score/',
-        3: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_03/best_score/',
-        4: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-12_14:47:28/obj_04/best_score/',
-        5: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-12_14:47:28/obj_05/best_score/',
+        1: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-11_10:31:58/obj_01/best_score/',
+        2: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-11_10:31:58/obj_02/best_score/',
+        3: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-11_10:31:58/obj_03/best_score/',
+        4: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-12_14:47:28/obj_04/best_score/',
+        5: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-12_14:47:28/obj_05/best_score/',
     }
     
     CUDA_DEVICE = '0'

@@ -252,8 +252,8 @@ if __name__ == '__main__':
     
     # Specify the path to the dataset folder.
     # 指定数据集文件夹的路径。
-    dataset_name = 'grabv1'
-    dataset_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/'
+    dataset_name = 'v1'
+    dataset_path = '/HCCEPose/datasets/'
     dataset_path = os.path.join(dataset_path, dataset_name)
     
     # Specify the name of the subfolder in the dataset used for loading training data.
@@ -262,10 +262,8 @@ if __name__ == '__main__':
     # train_folder_name = 'train'
     val_folder_name = 'val'
     
-    # The range of object IDs for training.  
-    # `start_obj_id` is the starting object ID, and `end_obj_id` is the ending object ID.
-    # 训练的物体 ID 范围。  
-    # `start_obj_id` 为起始物体 ID，`end_obj_id` 为终止物体 ID。
+    # The range of object IDs for training.
+    # 训练的物体 ID 范围。
     obj_id_list = [1]
     # obj_id_list = [1, 2, 3, 4, 5]
     
@@ -300,13 +298,13 @@ if __name__ == '__main__':
     # Whether to enable load_breakpoint.
     # 是否启用 load_breakpoint 加载断点。
     load_breakpoint = False
-    manual_load_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation2/2026-04-13_21:56:21'
+    manual_load_path = '/HCCEPose/output/dataset_name/pose_estimation2/2026-04-13_21:56:21'
     
     # 配置学习率衰减
     warmup_epochs = 3
     
     # 备份存储位置
-    output_save = '/media/ubuntu/DISK-C/YJP/HCCEPose/output/'
+    output_save = '/HCCEPose/output/'
     
     
     # Loss 权重因子

@@ -79,14 +79,14 @@ if __name__ == '__main__':
     # net_name = 'convnext'
     net_name = 'resnet'
     
-    # dataset_name = 'grabv1'
+    # dataset_name = 'dataset_name'
     dataset_name = 'tless'
     
     sys.path.insert(0, os.getcwd())
     current_dir = os.path.dirname(sys.argv[0])
     dataset_path = os.path.join(current_dir, '..', 'datasets', dataset_name)
     
-    bbox_2D_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/grabv1/test/gt_bbox2d.json'
+    bbox_2D_path = '/HCCEPose/datasets/dataset_name/test/gt_bbox2d.json'
     # bbox_2D_path = os.path.join(dataset_path, 'yolo11', 'yolo_detections.json')
     
     use_gt_bbox = True
@@ -95,29 +95,29 @@ if __name__ == '__main__':
     else:
         bbox_2D = bbox_2D_path
     
-    csv_save_path = f'/media/ubuntu/DISK-C/YJP/HCCEPose/output/{dataset_name}/test'
+    csv_save_path = f'/HCCEPose/output/{dataset_name}/test'
     now_stamp = datetime.now()
     csv_save_path = os.path.join(csv_save_path, net_name, now_stamp.strftime('%Y-%m-%d_%H:%M:%S'))
     os.makedirs(csv_save_path, exist_ok=True)
     
-    # grabv1
+    # dataset_name
     # train_folder_name = 'test'
     
     # obj_id_list = [1, 2, 3, 4, 5]
     
     # checkpoint_map = {
-    #     1: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-04_09:28:20/obj_01/best_score/',
-    #     2: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-04_09:28:20/obj_02/best_score/',
-    #     3: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-04_09:28:20/obj_03/best_score/',
-    #     4: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-07_16:58:22/obj_04/best_score/',
-    #     5: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-07_16:58:22/obj_05/best_score/',
+    #     1: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-04_09:28:20/obj_01/best_score/',
+    #     2: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-04_09:28:20/obj_02/best_score/',
+    #     3: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-04_09:28:20/obj_03/best_score/',
+    #     4: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-07_16:58:22/obj_04/best_score/',
+    #     5: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-07_16:58:22/obj_05/best_score/',
     # } # convnext
     # checkpoint_map = {
-    #     1: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_01/best_score/',
-    #     2: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_02/best_score/',
-    #     3: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-11_10:31:58/obj_03/best_score/',
-    #     4: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-12_14:47:28/obj_04/best_score/',
-    #     5: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation/2026-04-12_14:47:28/obj_05/best_score/',
+    #     1: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-11_10:31:58/obj_01/best_score/',
+    #     2: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-11_10:31:58/obj_02/best_score/',
+    #     3: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-11_10:31:58/obj_03/best_score/',
+    #     4: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-12_14:47:28/obj_04/best_score/',
+    #     5: '/HCCEPose/output/dataset_name/pose_estimation/2026-04-12_14:47:28/obj_05/best_score/',
     # } #resnet
     
     # tless
@@ -126,17 +126,17 @@ if __name__ == '__main__':
     obj_id_list = [1, 4, 5, 7, 11, 16, 18, 21, 24, 25, 27]
     
     checkpoint_map = {
-        1:  '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-25_11:00:23/obj_01/best_score/',
-        4:  '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-26_17:02:29/obj_04/best_score/',
-        5:  '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_05/best_score/',
-        7:  '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_07/best_score/',
-        11: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_11/best_score/',
-        16: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_16/best_score/',
-        18: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_18/best_score/',
-        21: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_21/best_score/',
-        24: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_24/best_score/',
-        25: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_25/best_score/',
-        27: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_27/best_score/',
+        1:  '/HCCEPose/output/tless/pose_estimation/2026-05-25_11:00:23/obj_01/best_score/',
+        4:  '/HCCEPose/output/tless/pose_estimation/2026-05-26_17:02:29/obj_04/best_score/',
+        5:  '/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_05/best_score/',
+        7:  '/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_07/best_score/',
+        11: '/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_11/best_score/',
+        16: '/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_16/best_score/',
+        18: '/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_18/best_score/',
+        21: '/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_21/best_score/',
+        24: '/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_24/best_score/',
+        25: '/HCCEPose/output/tless/pose_estimation/2026-05-22_20:22:08/obj_25/best_score/',
+        27: '/HCCEPose/output/tless/pose_estimation/2026-05-13_22:44:04/obj_27/best_score/',
     }
     
     CUDA_DEVICE = '0'
@@ -171,7 +171,7 @@ if __name__ == '__main__':
             best_save_path = checkpoint_map[obj_id]
         else:
             save_path = os.path.join(dataset_path, 'HccePose', 'obj_%s'%str(obj_id).rjust(2, '0'))
-            # save_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grab/pose_estimation/2026-01-30_13:39:14'
+            # save_path = '/HCCEPose/output/grab/pose_estimation/2026-01-30_13:39:14'
             save_path = os.path.join(save_path, 'obj_%s'%str(obj_id).rjust(2, '0'))
             best_save_path = os.path.join(save_path, 'best_score')
         
@@ -311,11 +311,11 @@ if __name__ == '__main__':
     pass
 
 """
-    >>> >>> python /media/ubuntu/DISK-C/YJP/HCCEPose/tools/generate_targets.py <your csv file> <output path (without filename)>
+    >>> >>> python /HCCEPose/tools/generate_targets.py <your csv file> <output path (without filename)>
 
-    >>> export BOP_PATH="/media/ubuntu/DISK-C/YJP/HCCEPose/datasets" (export the path of your datasets)
+    >>> export BOP_PATH="/HCCEPose/datasets" (export the path of your datasets)
     >>> CUDA_VISIBLE_DEVICES=1 (to choose gpu)
-    >>> xvfb-run -a python /media/ubuntu/DISK-C/YJP/HCCEPose/bop_toolkit/scripts/eval_bop19_pose.py\
+    >>> xvfb-run -a python /HCCEPose/bop_toolkit/scripts/eval_bop19_pose.py\
         --renderer_type=vispy\
         --result_filenames=<path of your csv file, its file name should be like: {algorithm}_{dataset}-{split}.csv>\
         --targets_filename=<path of your target file (test_targets_bop19.json)>\

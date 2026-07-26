@@ -272,24 +272,18 @@ if __name__ == '__main__':
     
     # Specify the path to the dataset folder.
     # 指定数据集文件夹的路径。
-    # dataset_name = 'grabv1'
     dataset_name = 'tless'
-    dataset_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/'
+    dataset_path = '/HCCEPose/datasets/'
     dataset_path = os.path.join(dataset_path, dataset_name)
     
     # Specify the name of the subfolder in the dataset used for loading training data.
     # 指定数据集中用于加载训练数据的子文件夹名称。
     train_folder_name = 'train_pbr'
-    # train_folder_name = 'train'
     val_folder_name = 'test_primesense'
     
-    # The range of object IDs for training.  
-    # `start_obj_id` is the starting object ID, and `end_obj_id` is the ending object ID.
-    # 训练的物体 ID 范围。  
-    # `start_obj_id` 为起始物体 ID，`end_obj_id` 为终止物体 ID。
-    # obj_id_list = [5, 11, 18, 24, 25]
-    # obj_id_list = [4, 7, 16, 21, 27]
-    obj_id_list = [4, 5, 16]
+    # The range of object IDs for training.
+    # 训练的物体 ID 范围。
+    obj_id_list = [1, 2, 3]
     
     # 主干网络类型
     net_name = 'convnext'
@@ -332,13 +326,13 @@ if __name__ == '__main__':
     # Whether to enable load_breakpoint.
     # 是否启用 load_breakpoint 加载断点。
     load_breakpoint = False
-    manual_load_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/output/tless/pose_estimation3/2026-05-30_17:33:08'
+    manual_load_path = '/HCCEPose/output/tless/pose_estimation3/2026-05-30_17:33:08'
     
     # 配置学习率衰减
     warmup_epochs = total_epochs // 25
     
     # 备份存储位置
-    output_save = '/media/ubuntu/DISK-C/YJP/HCCEPose/output/'
+    output_save = '/YJP/HCCEPose/output/'
     
     
     # Loss 权重因子

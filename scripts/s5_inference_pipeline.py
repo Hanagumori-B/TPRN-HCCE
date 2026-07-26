@@ -145,7 +145,7 @@ class MultiObjectPoseNet(torch.nn.Module):
 # 3. 核心推理主程序
 # ==========================================================
 """
-PYTHONPATH=. xvfb-run -a python /media/ubuntu/DISK-C/YJP/HCCEPose/scripts/s5_inference_pipeline.py
+PYTHONPATH=. xvfb-run -a python /HCCEPose/scripts/s5_inference_pipeline.py
 """
 
 if __name__ == '__main__':
@@ -155,24 +155,24 @@ if __name__ == '__main__':
     now_stamp = datetime.now()
     now_str = now_stamp.strftime('%Y-%m-%d_%H:%M:%S')
     
-    dataset_path = '/media/ubuntu/DISK-C/YJP/HCCEPose/datasets/grabv1'
+    dataset_path = '/HCCEPose/datasets/dataset_name'
     net_name = 'convnext'
     obj_id_list = [1, 2, 3, 4, 5]
     padding_ratio = 1.5
     
-    YOLO_MODEL_PATH = "/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/detection/obj_s/2026-04-23_14:48:50/train/weights/best.pt"
-    IMAGE_PATH = "/media/ubuntu/DISK-C/YJP/HCCEPose/pipeline/images/*.bmp"
-    OUTPUT_DIR = f"/media/ubuntu/DISK-C/YJP/HCCEPose/pipeline/inference_results/{now_str}"
+    YOLO_MODEL_PATH = "/HCCEPose/output/dataset_name/detection/obj_s/2026-04-23_14:48:50/train/weights/best.pt"
+    IMAGE_PATH = "/HCCEPose/pipeline/images/*.bmp"
+    OUTPUT_DIR = f"/HCCEPose/pipeline/inference_results/{now_str}"
     
     img_paths = glob(IMAGE_PATH)
     
     # 手动指定的权重路径 (或者按您的规则自动搜寻)
     checkpoint_map = {
-        1: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation3/2026-05-06_17:28:54/obj_01/best_score/',
-        2: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation3/2026-05-07_09:30:13/obj_02/best_score/',
-        3: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation3/2026-05-07_09:30:13/obj_03/best_score/',
-        4: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation3/2026-05-07_09:30:13/obj_04/best_score/',
-        5: '/media/ubuntu/DISK-C/YJP/HCCEPose/output/grabv1/pose_estimation3/2026-05-07_09:30:13/obj_05/best_score/',
+        1: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-06_17:28:54/obj_01/best_score/',
+        2: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-07_09:30:13/obj_02/best_score/',
+        3: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-07_09:30:13/obj_03/best_score/',
+        4: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-07_09:30:13/obj_04/best_score/',
+        5: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-07_09:30:13/obj_05/best_score/',
     }
 
     # ------------------ 1. 加载 TRPN-HCCE 模型与 Mesh ------------------
