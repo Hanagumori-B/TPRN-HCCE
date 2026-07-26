@@ -161,6 +161,7 @@ class HccePose_Loss(nn.Module):
         }
 
 
+# Author: Jinpeng Yang, CQUPT
 class HccePose_PnPNet_Loss(HccePose_Loss):
     def __init__(self, size_xyz=None, symmetric=False):
         super().__init__()
@@ -364,6 +365,7 @@ class HccePose_BF_Net(nn.Module):
         }
 
 
+# Author: Jinpeng Yang, CQUPT
 class HccePose_PnPNet_Net(HccePose_BF_Net):
     def __init__(self, 
                  net='resnet', 
