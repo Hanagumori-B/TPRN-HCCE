@@ -218,7 +218,7 @@ if __name__ == '__main__':
         # 固定相机内参
         cam_K_np = np.array([867.8339, 0.0, 382.9796, 0.0, 868.0221, 259.3721, 0.0, 0.0, 1.0]).reshape(3, 3).astype(np.float32)
         
-        # ------------------ 3. YOLO 目标检测与保存 JSON ------------------
+        # YOLO 目标检测
         print("Running YOLO detection...")
         yolo_model = YOLO(YOLO_MODEL_PATH)
         results = yolo_model.predict(img_rgb, conf=0.6, save=True, project=os.path.join(OUTPUT_DIR, img_name), name='predict_results')[0] # 置信度阈值可调
@@ -266,7 +266,7 @@ if __name__ == '__main__':
             print("No valid objects detected. Exiting.")
             sys.exit()
 
-        # ------------------ 4. 组装全局 Batch 送入 MultiObjectPoseNet ------------------
+        #  组装全局 Batch 送入 MultiObjectPoseNet
         print(f"Running TRPN-HCCE pose estimation for {len(tensor_list_rgb)} objects...")
         batch_rgb = torch.stack(tensor_list_rgb).to(device)
         batch_bbox = torch.tensor(np.array(tensor_list_bbox), dtype=torch.float32).to(device)
@@ -292,7 +292,7 @@ if __name__ == '__main__':
             cls_id = str(det["class_id"])
             bbox = tensor_list_bbox[i]
             
-            # 1. 使用对应类别的网络对 HCCE 隐空间编码进行解码（恢复 0-255 的坐标图）
+            # 使用对应类别的网络对 HCCE 隐空间编码进行解码
             net = hcce_list_dict[cls_id]
             front_code = pred_res['pred_front_code'][i:i+1] # 保持 batch 维度
             back_code = pred_res['pred_back_code'][i:i+1]
@@ -300,7 +300,7 @@ if __name__ == '__main__':
                 front_decoded = net.hcce_decode(front_code.permute(0,2,3,1)).squeeze(0).cpu().numpy() * 255
                 back_decoded = net.hcce_decode(back_code.permute(0,2,3,1)).squeeze(0).cpu().numpy() * 255
                 
-            # 2. 生成各种切片图像
+            # 生成切片图像
             crop_rgb = crop_bgr_list[i]
             mask_img = (pred_masks[i] > 0.5).astype(np.uint8) * 255
             mask_img_3c = cv2.cvtColor(mask_img, cv2.COLOR_GRAY2BGR)
@@ -309,13 +309,12 @@ if __name__ == '__main__':
             front_img = cv2.resize(front_img, (256, 256), interpolation=cv2.INTER_LINEAR)
             back_img = cv2.cvtColor(back_decoded.astype(np.uint8), cv2.COLOR_RGB2BGR)
             back_img = cv2.resize(back_img, (256, 256), interpolation=cv2.INTER_LINEAR)
-            # 3. 提取位姿并渲染 3D 模型
+            
             R = pred_rot_mats[i].reshape(3, 3)
             T = pred_trans[i].reshape(3, 1)
             mesh = obj_meshes[cls_id]
             rendered_crop = render_mesh_crop(mesh, R, T, cam_K_np, img_w, img_h, bbox)
             
-            # 4. 横向拼接 5 拼图
             composite_img = np.hstack([crop_rgb, front_img, back_img, mask_img_3c, rendered_crop])
             bottom_margin = 40
             composite_img = cv2.copyMakeBorder(
@@ -328,7 +327,7 @@ if __name__ == '__main__':
             cv2.imwrite(os.path.join(OUTPUT_DIR, img_name, comp_save_name), composite_img)
             print(f"Saved: {comp_save_name}")
             
-            # 5. 在原图上画绿色点云投影
+            # 在原图上画绿色点云投影
             # MAX_POINTS = 1500
             pts_3d = np.asarray(mesh.vertices)
             # if pts_3d.shape[0] > MAX_POINTS:
@@ -341,7 +340,7 @@ if __name__ == '__main__':
                 if 0 <= pt[0] < img_w and 0 <= pt[1] < img_h:
                     img_point_cloud_vis[pt[1], pt[0]] = (0, 255, 0)
             
-            # 1. 获取模型原始的 3D 边界框的 8 个角点
+            # 获取模型原始的 3D 边界框的 8 个角点
             min_b = mesh.get_min_bound()
             max_b = mesh.get_max_bound()
             corners_3d = np.array([
@@ -351,12 +350,12 @@ if __name__ == '__main__':
                 [max_b[0], max_b[1], max_b[2]], [min_b[0], max_b[1], max_b[2]],
             ])
             
-            # 2. 将 8 个角点进行刚体变换并投影到 2D
+            # 将 8 个角点进行刚体变换并投影到 2D
             corners_3d_transformed = (R @ corners_3d.T + T).T
             pts_2d, _ = cv2.projectPoints(corners_3d_transformed, np.zeros((3,1)), np.zeros((3,1)), cam_K_np, None)
             pts_2d = pts_2d.squeeze().astype(int)
             
-            # 3. 绘制 12 条连接线构成一个 3D 立体框
+            # 绘制 12 条连接线构成一个 3D 立体框
             edges = [(0,1), (1,2), (2,3), (3,0), (4,5), (5,6), (6,7), (7,4), (0,4), (1,5), (2,6), (3,7)]
             for e_i, e_j in edges:
                 pt1, pt2 = tuple(pts_2d[e_i]), tuple(pts_2d[e_j])
@@ -364,7 +363,7 @@ if __name__ == '__main__':
                 if 0 <= pt1[0] < img_w and 0 <= pt1[1] < img_h and 0 <= pt2[0] < img_w and 0 <= pt2[1] < img_h:
                     cv2.line(img_point_cloud_vis, pt1, pt2, (255, 255, 0), 1)
 
-            # 6. 保存最终的点云大图
+            # 保存最终的点云大图
             pc_save_name = f"{obj_idx}_pointcloud_projection.png"
             cv2.imwrite(os.path.join(OUTPUT_DIR, img_name, pc_save_name), img_point_cloud_vis)
             print(f"Saved full image point cloud projection to {pc_save_name}")
