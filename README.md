@@ -21,9 +21,42 @@ Compared with the original HCCEPose framework, TRPN-HCCE introduces:
 - Python 3.10
 - Pytorch 2.6
 
-After `git clone` this repositoriy, please download [bop_toolkit](https://github.com/WangYuLin-SEU/HCCEPose/blob/main/bop_toolkit.zip), and unzip it to the project root directory.
-For more detailed environment configuration information and training preprocessing, please refer to [HCCEPose](https://github.com/WangYuLin-SEU/HCCEPose)
+## Installation
 
-You can train a TRPN-HCCE model using `scripts/s4_p2_train_pnpnet_bf_pbr_by_epoch_with_smooth_decode_loss.py`.
+Clone this repository:
+
+```bash
+git clone https://github.com/Hanagumori-B/TRPN-HCCE.git
+cd TRPN-HCCE
+```
+
+The project follows the data organization and preprocessing pipeline of HCCEPose.
+After `git clone` this repositoriy, please download the BOP toolkit from the original HCCEPose repository: [bop_toolkit](https://github.com/WangYuLin-SEU/HCCEPose/blob/main/bop_toolkit.zip), and unzip it to the project root directory.
+
+```
+TRPN-HCCE
+│
+├── bop_toolkit/
+├── datasets/
+├── HccePose/
+├── outputs/
+├── scripts/
+├── tools/
+├── yolo_train/
+└── ...
+```
+
+For more detailed environment configuration information and dataset preprocessing, please refer to [HCCEPose](https://github.com/WangYuLin-SEU/HCCEPose)
+
+## Training
+
+### Training the 2D Detector
+
+Script `scripts/s3_p1_prepare_yolo_lable.py` convert BOP PBR data to YOLO format. 
+After Converrting, you can train a YOLO using the script `scripts/s3_p2_train_yolo.py`.
+
+### Training TRPN-HCCE
+Run the script `scripts/s4_p1_gen_bf_labels.py` to generate the front and back 3D coordinate label maps.
+Then, you can train a TRPN-HCCE model using `scripts/s4_p2_train_pnpnet_bf_pbr_by_epoch_with_smooth_decode_loss.py`.
 
 
