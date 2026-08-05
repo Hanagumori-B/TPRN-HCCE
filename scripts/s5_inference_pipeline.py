@@ -13,15 +13,13 @@ import torchvision.transforms as transforms
 from ultralytics import YOLO 
 from glob import glob
 
-# 请确保这些路径与您的工程匹配
 from HccePose.bop_loader import BopDataset
 from HccePose.network_model import HccePose_PnPNet_Net, load_checkpoint
 from HccePose.tools.rot_reps import rot6d_to_mat_batch
 from kasal.bop_toolkit_lib.inout import load_ply
 
-# ==========================================================
-# 1. 预处理与可视化工具函数
-# ==========================================================
+
+# 预处理与可视化工具函数
 def pad_square_fp32(GT_Bbox, padding_ratio=1.5):
     center_x = GT_Bbox[0] + 0.5 * GT_Bbox[2]
     center_y = GT_Bbox[1] + 0.5 * GT_Bbox[3]
@@ -83,9 +81,8 @@ def render_mesh_crop(mesh, R, t, K, img_w, img_h, bbox, crop_size=256):
 
     return crop_square_resize(rendered_img, bbox, crop_size, cv2.INTER_LINEAR)
 
-# ==========================================================
-# 2. 您的多目标并行网络 (增加可视化特征图输出)
-# ==========================================================
+
+# 多目标并行网络
 class MultiObjectPoseNet(torch.nn.Module):
     def __init__(self, hcce_list_dict):
         super().__init__()
@@ -141,15 +138,12 @@ class MultiObjectPoseNet(torch.nn.Module):
         }
 
 
-# ==========================================================
-# 3. 核心推理主程序
-# ==========================================================
 """
 PYTHONPATH=. xvfb-run -a python /HCCEPose/scripts/s5_inference_pipeline.py
 """
 
 if __name__ == '__main__':
-    # ------------------ 路径与参数配置 ------------------
+    # 路径与参数配置
     CUDA_DEVICE = '0'
     device = torch.device(f'cuda:{CUDA_DEVICE}' if torch.cuda.is_available() else 'cpu')
     now_stamp = datetime.now()
@@ -166,7 +160,7 @@ if __name__ == '__main__':
     
     img_paths = glob(IMAGE_PATH)
     
-    # 手动指定的权重路径 (或者按您的规则自动搜寻)
+    # 手动指定的权重路径
     checkpoint_map = {
         1: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-06_17:28:54/obj_01/best_score/',
         2: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-07_09:30:13/obj_02/best_score/',
@@ -175,7 +169,7 @@ if __name__ == '__main__':
         5: '/HCCEPose/output/dataset_name/pose_estimation/2026-05-07_09:30:13/obj_05/best_score/',
     }
 
-    # ------------------ 1. 加载 TRPN-HCCE 模型与 Mesh ------------------
+    # 加载 TRPN-HCCE 模型与 Mesh
     print("Loading models and meshes...")
     bop_dataset_item = BopDataset(dataset_path)
     hcce_list_dict = {}
@@ -210,7 +204,7 @@ if __name__ == '__main__':
     multi_model = MultiObjectPoseNet(hcce_list_dict).to(device)
     multi_model.eval()
 
-    # ------------------ 2. 读取图像与相机内参 ------------------
+    # 读取图像与相机内参
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     
@@ -291,7 +285,7 @@ if __name__ == '__main__':
         pred_trans = pred_res['pred_trans'].cpu().numpy()
         pred_masks = pred_res['pred_mask'].cpu().numpy()
 
-        # ------------------ 5. 解码密集图与生成最终可视化 ------------------
+        #  解码密集图与生成最终可视化 
         for i, det in enumerate(detections_log):
             img_point_cloud_vis = img_bgr.copy()
             obj_idx = det["obj_idx"]
