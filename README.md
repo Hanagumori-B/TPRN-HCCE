@@ -1,6 +1,6 @@
-# TRPN-HCCE
+# TPRN-HCCE
 
-TRPN-HCCE is a research project for monocular RGB 6D object pose estimation.
+TPRN-HCCE is a research project for monocular RGB 6D object pose estimation.
 
 This project is developed based on the excellent **HCCEPose** framework and extends it with a fully differentiable end-to-end pose estimation pipeline. We sincerely thank the original authors for making their code publicly available.
 
@@ -9,7 +9,7 @@ https://github.com/WangYuLin-SEU/HCCEPose
 
 ## Overview
 
-Compared with the original HCCEPose framework, TRPN-HCCE introduces:
+Compared with the original HCCEPose framework, TPRN-HCCE introduces:
 
 - A learnable differentiable HCCE decoder for dense coordinate reconstruction.
 - A Transformer-PnP pose regression network for direct SE(3) estimation.
@@ -26,15 +26,15 @@ Compared with the original HCCEPose framework, TRPN-HCCE introduces:
 Clone this repository:
 
 ```bash
-git clone https://github.com/Hanagumori-B/TRPN-HCCE.git
-cd TRPN-HCCE
+git clone https://github.com/Hanagumori-B/TPRN-HCCE.git
+cd TPRN-HCCE
 ```
 
 The project follows the data organization and preprocessing pipeline of HCCEPose.
 After `git clone` this repository, please download the BOP toolkit provided by the original HCCEPose repository: [bop_toolkit](https://github.com/WangYuLin-SEU/HCCEPose/blob/main/bop_toolkit.zip), and unzip it to the project root directory.
 
 ```
-TRPN-HCCE
+TPRN-HCCE
 │
 ├── bop_toolkit/
 ├── datasets/
@@ -56,10 +56,10 @@ Script `scripts/s3_p1_prepare_yolo_label.py` convert BOP PBR data to YOLO format
 
 After Converting, you can train the YOLO detector using the script `scripts/s3_p2_train_yolo.py`.
 
-### Training TRPN-HCCE
+### Training TPRN-HCCE
 Run the script `scripts/s4_p1_gen_bf_labels.py` to generate the front and back 3D coordinate label maps.
 
-Then, you can train a TRPN-HCCE model using `scripts/s4_p2_train_pnpnet_bf_pbr_by_epoch_with_smooth_decode_loss.py`.
+Then, you can train a TPRN-HCCE model using `scripts/s4_p2_train_pnpnet_bf_pbr_by_epoch_with_smooth_decode_loss.py`.
 
 ## Inference
 
